@@ -1,0 +1,59 @@
+name: E-Commerce CI/CD Pipeline
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+# Grant necessary permissions to the GitHub token for Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Prevent concurrent deployments from colliding
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: Continuous Integration (Linting & Validation)
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js runtime for validation tools
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Run HTML syntax validator
+        run: |
+          npx htmlhint index.html --rules tag-pair
+
+  # Job 2: Continuous Deployment (Publish to GitHub Pages)
+  deploy-to-pages:
+    needs: lint-and-validate
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v5
+
+      - name: Configure GitHub Pages environment
+        uses: actions/configure-pages@v4
+
+      - name: Upload static website files as deployment artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy artifact to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
